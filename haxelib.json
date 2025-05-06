@@ -2,7 +2,7 @@
     "name": "hxtomlc17",
     "url" : "https://github.com/Vortex2Oblivion/hxtomlc17",
     "license": "MIT",
-    "tags": ["hxcpp", "cpp", "bindings", "native", "toml", "externs", "tomlc17"],
+    "tags": ["hxcpp", "cpp", "bindings", "native", "toml", "parser", "externs", "tomlc17"],
     "description": "Haxe/hxcpp @:native bindings for tomlc17",
     "version": "1.0.0",
     "releasenote": "Initial Release",
