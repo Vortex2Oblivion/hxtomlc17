@@ -1,0 +1,21 @@
+<xml>
+	<pragma once="true" />
+	<set name="toml_folder" value="${haxelib:hxtomlc17}/include" />
+
+	<files id="__main__">
+		<compilerflag value="-I${hxtomlc17}" />
+	</files>
+
+	<files id="haxe">
+		<compilerflag value="-I${toml_folder}" />
+	</files>
+
+	<files id="tomlc17">
+		<compilerflag value="-I${toml_folder}" />
+		<file name="${toml_folder}/tomlc17.c" />
+	</files>
+
+	<target id="haxe">
+		<files id="tomlc17" />
+	</target>
+</xml>
