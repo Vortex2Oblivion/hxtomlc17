@@ -35,6 +35,14 @@ import hxtomlc17.Toml;
 import hxtomlc17.TomlDatum;
 import hxtomlc17.TomlResult;
 
+/*
+ * Parse the config file simple.toml:
+ *
+ * [server]
+ * host = "www.example.com"
+ * port = [8080, 8181, 8282]
+ *
+ */
 class Main {
  static function error(msg:String, ?msg1:Int) {
   Sys.println('ERROR: $msg${Std.string(msg1) ?? ""}');
