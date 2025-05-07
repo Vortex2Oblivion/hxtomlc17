@@ -25,6 +25,13 @@ extern class Toml {
 	static function parseFile(file:RawPointer<RawFILE>):TomlResult;
 
 	/**
+	 * Parse a toml file. Returns a `TomlResult` which must be freed
+	 * using `free()` eventually.
+	 */
+	@:native("toml_parse_file_ex")
+	static function parseFileEx(fname:ConstCharStar):TomlResult;
+
+	/**
 	 * Release the result.
 	 */
 	@:native("toml_free")

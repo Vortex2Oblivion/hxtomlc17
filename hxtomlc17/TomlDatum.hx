@@ -14,46 +14,57 @@ extern class TomlDatum {
 	function new():Void;
 
 	var type:TomlType;
+
 	/**
 	 * internal
 	 */
 	private var flag:UInt32;
 
-	var u:U;
+	var u:TomlDatumU;
 }
-
 
 @:buildXml("<include name='${haxelib:hxtomlc17}/build.xml' />")
 @:include("tomlc17.h")
 @:structAccess
-private extern class U {
+@:native("toml_datum_t::u")
+extern class TomlDatumU {
+	function new():Void;
+
 	/**
 	 * same as `str.ptr`; use if there are no null in string.
 	 */
 	var s:ConstCharStar;
-	var str:Str;
-	var arr:Arr;
+
+	var str:TomlDatumStr;
+	var arr:TomlDatumArr;
+
 	/**
 	 * integer
 	 */
 	var int64:Int64;
+
 	/**
 	 * float
 	 */
 	var fp64:Double;
+
 	var boolean:Bool;
-	var ts:Ts;
-	var tab:Tab;
+	var ts:TomlDatumTs;
+	var tab:TomlDatumTab;
 }
 
 @:buildXml("<include name='${haxelib:hxtomlc17}/build.xml' />")
 @:include("tomlc17.h")
 @:structAccess
-private extern class Str {
+@:native("toml_datum_t::str")
+extern class TomlDatumStr {
+	function new():Void;
+
 	/**
 	 * null terminated string
 	 */
 	var ptr:ConstCharStar;
+
 	var len:Int;
 }
 
@@ -63,7 +74,10 @@ private extern class Str {
 @:buildXml("<include name='${haxelib:hxtomlc17}/build.xml' />")
 @:include("tomlc17.h")
 @:structAccess
-private extern class Ts {
+@:native("toml_datum_t::ts")
+extern class TomlDatumTs {
+	function new():Void;
+
 	var year:Int;
 	var month:Int;
 	var day:Int;
@@ -85,11 +99,15 @@ private extern class Ts {
 @:buildXml("<include name='${haxelib:hxtomlc17}/build.xml' />")
 @:include("tomlc17.h")
 @:structAccess
-private extern class Arr {
+@:native("toml_datum_t::arr")
+extern class TomlDatumArr {
+	function new():Void;
+
 	/**
 	 * count elem
 	 */
 	var size:Int;
+
 	var elem:RawPointer<TomlDatum>;
 }
 
@@ -99,11 +117,15 @@ private extern class Arr {
 @:buildXml("<include name='${haxelib:hxtomlc17}/build.xml' />")
 @:include("tomlc17.h")
 @:structAccess
-private extern class Tab {
+@:native("toml_datum_t::tab")
+extern class TomlDatumTab {
+	function new():Void;
+
 	/**
 	 * count key
 	 */
 	var size:Int;
+
 	var key:RawPointer<ConstCharStar>;
 	var len:RawPointer<Int>;
 	var value:RawPointer<TomlDatum>;
