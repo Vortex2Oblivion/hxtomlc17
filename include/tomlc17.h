@@ -29,6 +29,9 @@ enum toml_type_t {
   TOML_TABLE,
 };
 
+/* This is a Node in a Tree that represents a toml document rooted
+ * from toml_result_t::toptab.
+ */
 typedef struct toml_datum_t toml_datum_t;
 struct toml_datum_t {
   toml_type_t type;
@@ -84,12 +87,11 @@ TOML_EXTERN toml_result_t toml_parse(const char *src, int len);
  */
 TOML_EXTERN toml_result_t toml_parse_file(FILE *file);
 
-
 /**
  * Parse a toml file. Returns a toml_result which must be freed
  * using toml_free() eventually.
  */
-TOML_EXTERN toml_result_t toml_parse_file_ex(const char* fname);
+TOML_EXTERN toml_result_t toml_parse_file_ex(const char *fname);
 
 /**
  * Release the result.
@@ -124,4 +126,4 @@ TOML_EXTERN toml_option_t toml_default_option(void);
  */
 TOML_EXTERN void toml_set_option(toml_option_t opt);
 
-#endif   // TOMLC17_H
+#endif // TOMLC17_H
