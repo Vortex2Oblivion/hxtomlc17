@@ -4,8 +4,8 @@
     "license": "MIT",
     "tags": ["hxcpp", "cpp", "bindings", "native", "toml", "parser", "externs", "tomlc17"],
     "description": "Haxe/hxcpp @:native bindings for tomlc17",
-    "version": "1.1.1",
-    "releasenote": "Update tomlc17 to fix a potential integer overflow",
+    "version": "1.1.2",
+    "releasenote": "Deprecate Toml.tableFind()",
     "contributors": ["Vortex"],
     "dependencies": {
       "cpphelpers": ""

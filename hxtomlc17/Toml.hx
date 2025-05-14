@@ -37,11 +37,19 @@ extern class Toml {
 	@:native("toml_free")
 	static function free(result:TomlResult):TomlResult;
 
+	/**
+     * Find a key in a `TomlDatum`. Return the value of the key if found,
+     * or a `TOML_UNKNOWN` otherwise.
+     */
+	@:native("toml_get")
+	static function get(datum:TomlDatum, key:ConstCharStar):TomlDatum;
+
     /**
      * Find a key in a `TomlDatum`. Return the value of the key if found,
      * or a `TOML_UNKNOWN` otherwise.
      */
 	@:native("toml_table_find")
+	@:deprecated("Use Toml.get() instead")
 	static function tableFind(datum:TomlDatum, key:ConstCharStar):TomlDatum;
 
     @:native("toml_default_option")

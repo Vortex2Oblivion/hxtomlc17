@@ -36,9 +36,9 @@ class Main {
 			error(result.errmsg, 0);
 		}
 
-		var server:TomlDatum = Toml.tableFind(result.toptab, "server");
-		var host:TomlDatum = Toml.tableFind(server, "host");
-		var port:TomlDatum = Toml.tableFind(server, "port");
+		var server:TomlDatum = Toml.get(result.toptab, "server");
+		var host:TomlDatum = Toml.get(server, "host");
+		var port:TomlDatum = Toml.get(server, "port");
 
 		if (host.type != TOML_STRING) {
 			error("missing or invalid 'server.host' property in config", 0);
