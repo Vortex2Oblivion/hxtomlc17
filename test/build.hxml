@@ -3,5 +3,3 @@
 -main Main
 --cpp bin
 --library hxtomlc17
---cmd cd bin
---cmd Main.exe

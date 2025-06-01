@@ -2,7 +2,9 @@ package hxtomlc17;
 
 import cpp.RawPointer;
 
-/* Result returned by `Toml.parse()` */
+/**
+ * Result returned by `Toml.parse()`
+ */
 @:buildXml("<include name='${haxelib:hxtomlc17}/build.xml' />")
 @:include("tomlc17.h")
 @:native("toml_result_t")

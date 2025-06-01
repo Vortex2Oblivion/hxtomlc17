@@ -1,10 +1,11 @@
 package hxtomlc17;
 
 import cpp.Callable;
-import cpp.RawPointer;
 import cpp.SizeT;
 
-/* Options that override tomlc17 defaults globally */
+/**
+ * Options that override tomlc17 defaults globally 
+*/
 @:buildXml("<include name='${haxelib:hxtomlc17}/build.xml' />")
 @:include("tomlc17.h")
 @:native("toml_option_t")

@@ -13,11 +13,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-static toml_option_t toml_option = {0, malloc, free, realloc};
+const toml_datum_t DATUM_ZERO = {0};
 
-#define MALLOC(n) toml_option.mem_alloc(n)
-#define FREE(p) toml_option.mem_free(p)
+static toml_option_t toml_option = {0, realloc, free};
+
+#define MALLOC(n) toml_option.mem_realloc(0, n)
 #define REALLOC(p, n) toml_option.mem_realloc(p, n)
+#define FREE(p) toml_option.mem_free(p)
 
 #define DO(x)                                                                  \
   if (x)                                                                       \
@@ -64,7 +66,7 @@ struct pool_t {
  */
 static pool_t *pool_create(int N) {
   if (N <= 0) {
-    return NULL;
+    N = 100; // minimum
   }
   int totalsz = sizeof(pool_t) + N;
   pool_t *pool = MALLOC(totalsz);
@@ -202,6 +204,40 @@ struct parser_t {
   ebuf_t ebuf;
 };
 
+static toml_datum_t *tab_emplace(toml_datum_t *tab, span_t key,
+                                 const char **reason) {
+  assert(tab->type == TOML_TABLE);
+  int N = tab->u.tab.size;
+  for (int i = 0; i < N; i++) {
+    if (tab->u.tab.len[i] == key.len &&
+        0 == memcmp(tab->u.tab.key[i], key.ptr, key.len)) {
+      return &tab->u.tab.value[i];
+    }
+  }
+  // Expand pkey[], plen[] and value[]
+  char **pkey = REALLOC(tab->u.tab.key, sizeof(*pkey) * align8(N + 1));
+  int *plen = REALLOC(tab->u.tab.len, sizeof(*plen) * align8(N + 1));
+  toml_datum_t *value =
+      REALLOC(tab->u.tab.value, sizeof(*value) * align8(N + 1));
+  if (!pkey || !plen || !value) {
+    *reason = "out of memory";
+    FREE(pkey);
+    FREE(plen);
+    FREE(value);
+    return NULL;
+  }
+  tab->u.tab.key = (const char **)pkey;
+  tab->u.tab.len = plen;
+  tab->u.tab.value = value;
+
+  // Append the new key/value
+  tab->u.tab.size = N + 1;
+  pkey[N] = (char *)key.ptr;
+  plen[N] = key.len;
+  value[N] = DATUM_ZERO;
+  return &value[N];
+}
+
 // Find key in tab and return its index. If not found, return -1.
 static int tab_find(toml_datum_t *tab, span_t key) {
   assert(tab->type == TOML_TABLE);
@@ -218,52 +254,33 @@ static int tab_find(toml_datum_t *tab, span_t key) {
 // On error, reason will point to an error message.
 static int tab_add(toml_datum_t *tab, span_t newkey, toml_datum_t newvalue,
                    const char **reason) {
-  // Check for duplicate key
-  int nkey = tab->u.tab.size;
-  for (int i = 0; i < nkey; i++) {
-    if (tab->u.tab.len[i] == newkey.len &&
-        0 == memcmp(tab->u.tab.key[i], newkey.ptr, newkey.len)) {
-      *reason = "duplicate key";
-      return -1;
-    }
-  }
-
-  // Expand pkey[], plen[] and value[]
-  char **pkey = REALLOC(tab->u.tab.key, sizeof(*pkey) * align8(nkey + 1));
-  int *plen = REALLOC(tab->u.tab.len, sizeof(*plen) * align8(nkey + 1));
-  toml_datum_t *value =
-      REALLOC(tab->u.tab.value, sizeof(*value) * align8(nkey + 1));
-  if (!pkey || !plen || !value) {
-    *reason = "out of memory";
+  assert(tab->type == TOML_TABLE);
+  if (-1 != tab_find(tab, newkey)) {
+    *reason = "duplicate key";
     return -1;
   }
-  tab->u.tab.key = (const char **)pkey;
-  tab->u.tab.len = plen;
-  tab->u.tab.value = value;
-
-  // Append the new key/value
-  tab->u.tab.size = nkey + 1;
-  pkey[nkey] = (char *)newkey.ptr;
-  plen[nkey] = newkey.len;
-  value[nkey] = newvalue;
+  toml_datum_t *pvalue = tab_emplace(tab, newkey, reason);
+  if (!pvalue) {
+    return -1;
+  }
+  *pvalue = newvalue;
   return 0;
 }
 
 // Add a new element into an array. Return 0 on success, -1 otherwise.
 // On error, reason will point to an error message.
-static int arr_add(toml_datum_t *arr, toml_datum_t newelem,
-                   const char **reason) {
+static toml_datum_t *arr_emplace(toml_datum_t *arr, const char **reason) {
   assert(arr->type == TOML_ARRAY);
   int n = arr->u.arr.size;
   toml_datum_t *elem = REALLOC(arr->u.arr.elem, sizeof(*elem) * align8(n + 1));
   if (!elem) {
     *reason = "out of memory";
-    return -1;
+    return NULL;
   }
   arr->u.arr.elem = elem;
   arr->u.arr.size = n + 1;
-  elem[n] = newelem;
-  return 0;
+  elem[n] = DATUM_ZERO;
+  return &elem[n];
 }
 
 // ------------------- parser section
@@ -291,24 +308,255 @@ static toml_datum_t mkdatum(toml_type_t ty) {
 }
 
 // Recursively free any dynamically allocated memory in the datum tree
-static void free_datum(toml_datum_t datum) {
-  if (datum.type == TOML_TABLE) {
-    for (int i = 0, top = datum.u.tab.size; i < top; i++) {
-      free_datum(datum.u.tab.value[i]);
+static void datum_free(toml_datum_t *datum) {
+  if (datum->type == TOML_TABLE) {
+    for (int i = 0, top = datum->u.tab.size; i < top; i++) {
+      datum_free(&datum->u.tab.value[i]);
     }
-    FREE(datum.u.tab.key);
-    FREE(datum.u.tab.len);
-    FREE(datum.u.tab.value);
-    return;
-  }
-  if (datum.type == TOML_ARRAY) {
-    for (int i = 0, top = datum.u.arr.size; i < top; i++) {
-      free_datum(datum.u.arr.elem[i]);
+    FREE(datum->u.tab.key);
+    FREE(datum->u.tab.len);
+    FREE(datum->u.tab.value);
+  } else if (datum->type == TOML_ARRAY) {
+    for (int i = 0, top = datum->u.arr.size; i < top; i++) {
+      datum_free(&datum->u.arr.elem[i]);
     }
-    FREE(datum.u.arr.elem);
-    return;
+    FREE(datum->u.arr.elem);
   }
   // other types do not allocate memory
+  *datum = DATUM_ZERO;
+}
+
+static int datum_copy(toml_datum_t *dst, toml_datum_t src, pool_t *pool,
+                      const char **reason) {
+  *dst = mkdatum(src.type);
+  switch (src.type) {
+  case TOML_STRING:
+    dst->u.str.ptr = pool_alloc(pool, src.u.str.len + 1);
+    if (!dst->u.str.ptr) {
+      *reason = "out of memory";
+      goto bail;
+    }
+    dst->u.str.len = src.u.str.len;
+    memcpy((char *)dst->u.str.ptr, src.u.str.ptr, src.u.str.len + 1);
+    break;
+  case TOML_TABLE:
+    for (int i = 0; i < src.u.tab.size; i++) {
+      span_t newkey = {src.u.tab.key[i], src.u.tab.len[i]};
+      toml_datum_t *pvalue = tab_emplace(dst, newkey, reason);
+      if (!pvalue) {
+        goto bail;
+      }
+      if (datum_copy(pvalue, src.u.tab.value[i], pool, reason)) {
+        goto bail;
+      }
+    }
+    break;
+  case TOML_ARRAY:
+    for (int i = 0; i < src.u.arr.size; i++) {
+      toml_datum_t *pelem = arr_emplace(dst, reason);
+      if (!pelem) {
+        goto bail;
+      }
+      if (datum_copy(pelem, src.u.arr.elem[i], pool, reason)) {
+        goto bail;
+      }
+    }
+    break;
+  default:
+    *dst = src;
+    break;
+  }
+
+  return 0;
+
+bail:
+  datum_free(dst);
+  return -1;
+}
+
+static inline bool is_array_of_tables(toml_datum_t datum) {
+  bool ret = (datum.type == TOML_ARRAY);
+  for (int i = 0; ret && i < datum.u.arr.size; i++) {
+    ret = (datum.u.arr.elem[i].type == TOML_TABLE);
+  }
+  return ret;
+}
+
+static int datum_merge(toml_datum_t *dst, toml_datum_t src, pool_t *pool,
+                       const char **reason) {
+  if (dst->type != src.type) {
+    datum_free(dst);
+    return datum_copy(dst, src, pool, reason);
+  }
+  switch (src.type) {
+  case TOML_TABLE:
+    // for key-value in src:
+    //    override key-value in dst.
+    for (int i = 0; i < src.u.tab.size; i++) {
+      span_t key;
+      key.ptr = src.u.tab.key[i];
+      key.len = src.u.tab.len[i];
+      toml_datum_t *pvalue = tab_emplace(dst, key, reason);
+      if (!pvalue) {
+        return -1;
+      }
+      if (pvalue->type) {
+        DO(datum_merge(pvalue, src.u.tab.value[i], pool, reason));
+      } else {
+        datum_free(pvalue);
+        DO(datum_copy(pvalue, src.u.tab.value[i], pool, reason));
+      }
+    }
+    return 0;
+  case TOML_ARRAY:
+    if (is_array_of_tables(src)) {
+      // append src array to dst
+      for (int i = 0; i < src.u.arr.size; i++) {
+        toml_datum_t *pelem = arr_emplace(dst, reason);
+        if (!pelem) {
+          return -1;
+        }
+        DO(datum_copy(pelem, src.u.arr.elem[i], pool, reason));
+      }
+      return 0;
+    }
+    // fallthru
+  default:
+    break;
+  }
+  datum_free(dst);
+  return datum_copy(dst, src, pool, reason);
+}
+
+static bool datum_equiv(toml_datum_t a, toml_datum_t b) {
+  if (a.type != b.type) {
+    return false;
+  }
+  int N;
+  switch (a.type) {
+  case TOML_STRING:
+    return a.u.str.len == b.u.str.len &&
+           0 == memcmp(a.u.str.ptr, b.u.str.ptr, a.u.str.len);
+  case TOML_INT64:
+    return a.u.int64 == b.u.int64;
+  case TOML_FP64:
+    return a.u.fp64 == b.u.fp64;
+  case TOML_BOOLEAN:
+    return !!a.u.boolean == !!b.u.boolean;
+  case TOML_DATE:
+    return a.u.ts.year == b.u.ts.year && a.u.ts.month == b.u.ts.month &&
+           a.u.ts.day == b.u.ts.day;
+  case TOML_TIME:
+    return a.u.ts.hour == b.u.ts.hour && a.u.ts.minute == b.u.ts.minute &&
+           a.u.ts.second == b.u.ts.second && a.u.ts.usec == b.u.ts.usec;
+  case TOML_DATETIME:
+    return a.u.ts.year == b.u.ts.year && a.u.ts.month == b.u.ts.month &&
+           a.u.ts.day == b.u.ts.day && a.u.ts.hour == b.u.ts.hour &&
+           a.u.ts.minute == b.u.ts.minute && a.u.ts.second == b.u.ts.second &&
+           a.u.ts.usec == b.u.ts.usec;
+  case TOML_DATETIMETZ:
+    return a.u.ts.year == b.u.ts.year && a.u.ts.month == b.u.ts.month &&
+           a.u.ts.day == b.u.ts.day && a.u.ts.hour == b.u.ts.hour &&
+           a.u.ts.minute == b.u.ts.minute && a.u.ts.second == b.u.ts.second &&
+           a.u.ts.usec == b.u.ts.usec && a.u.ts.tz == b.u.ts.tz;
+  case TOML_ARRAY:
+    N = a.u.arr.size;
+    if (N != b.u.arr.size) {
+      return false;
+    }
+    for (int i = 0; i < N; i++) {
+      if (!datum_equiv(a.u.arr.elem[i], b.u.arr.elem[i])) {
+        return false;
+      }
+    }
+    return true;
+  case TOML_TABLE:
+    N = a.u.tab.size;
+    if (N != b.u.tab.size) {
+      return false;
+    }
+    for (int i = 0; i < N; i++) {
+      int len = a.u.tab.len[i];
+      if (len != b.u.tab.len[i]) {
+        return false;
+      }
+      if (0 != memcmp(a.u.tab.key[i], b.u.tab.key[i], len)) {
+        return false;
+      }
+      if (!datum_equiv(a.u.tab.value[i], b.u.tab.value[i])) {
+        return false;
+      }
+    }
+    return true;
+  default:
+    break;
+  }
+  return false;
+}
+
+/**
+ *  Override values in r1 using r2. Return a new result. All results
+ *  (i.e., r1, r2 and the returned result) must be freed using toml_free()
+ *  after use.
+ *
+ *  LOGIC:
+ *   ret = copy of r1
+ *   for each item x in r2:
+ *     if x is not in ret:
+ *          override
+ *     elif x in ret is NOT of the same type:
+ *         override
+ *     elif x is an array of tables:
+ *         append r2.x to ret.x
+ *     elif x is a table:
+ *         merge r2.x to ret.x
+ *     else:
+ *         override
+ */
+toml_result_t toml_merge(const toml_result_t *r1, const toml_result_t *r2) {
+  const char *reason = "";
+  toml_result_t ret = {0};
+  pool_t *pool = 0;
+  if (!r1->ok) {
+    reason = "param error: r1 not ok";
+    goto bail;
+  }
+  if (!r2->ok) {
+    reason = "param error: r2 not ok";
+    goto bail;
+  }
+  {
+    pool_t *r1pool = (pool_t *)r1->__internal;
+    pool_t *r2pool = (pool_t *)r2->__internal;
+    pool = pool_create(r1pool->top + r2pool->top);
+    if (!pool) {
+      reason = "out of memory";
+      goto bail;
+    }
+  }
+
+  if (datum_copy(&ret.toptab, r1->toptab, pool, &reason)) {
+    goto bail;
+  }
+  if (datum_merge(&ret.toptab, r2->toptab, pool, &reason)) {
+    goto bail;
+  }
+
+  ret.ok = 1;
+  ret.__internal = pool;
+  return ret;
+
+bail:
+  pool_destroy(pool);
+  snprintf(ret.errmsg, sizeof(ret.errmsg), "%s", reason);
+  return ret;
+}
+
+bool toml_equiv(const toml_result_t *r1, const toml_result_t *r2) {
+  if (!(r1->ok && r2->ok)) {
+    return false;
+  }
+  return datum_equiv(r1->toptab, r2->toptab);
 }
 
 /**
@@ -334,7 +582,7 @@ toml_datum_t toml_get(toml_datum_t datum, const char *key) {
  *  Return the default options.
  */
 toml_option_t toml_default_option(void) {
-  toml_option_t opt = {0, malloc, free, realloc};
+  toml_option_t opt = {0, realloc, free};
   return opt;
 }
 
@@ -347,8 +595,8 @@ void toml_set_option(toml_option_t opt) { toml_option = opt; }
  *  Free the result returned by toml_parse().
  */
 void toml_free(toml_result_t result) {
+  datum_free(&result.toptab);
   pool_destroy((pool_t *)result.__internal);
-  free_datum(result.toptab);
 }
 
 /**
@@ -690,8 +938,7 @@ static toml_datum_t *descend_keypart(parser_t *pp, int lineno,
         ERROR(pp->ebuf, lineno, "%s", reason);
         return NULL;
       }
-      // Descend.
-      tab = &tab->u.tab.value[tab->u.tab.size - 1];
+      tab = &tab->u.tab.value[tab->u.tab.size - 1]; // descend
       continue;
     }
 
@@ -700,11 +947,11 @@ static toml_datum_t *descend_keypart(parser_t *pp, int lineno,
 
     // If the value is a table, descend.
     if (value->type == TOML_TABLE) {
-      tab = value;
+      tab = value; // descend
       continue;
     }
 
-    // If the value is an array...
+    // If the value is an array: locate the last entry and descend.
     if (value->type == TOML_ARRAY) {
       // If empty: error.
       if (value->u.arr.size <= 0) {
@@ -722,9 +969,7 @@ static toml_datum_t *descend_keypart(parser_t *pp, int lineno,
               keypart->span[i].ptr);
         return NULL;
       }
-
-      // Descend.
-      tab = value;
+      tab = value; // descend
       continue;
     }
 
@@ -794,15 +1039,15 @@ static int parse_inline_array(parser_t *pp, token_t tok,
 
     // This is a valid value!
 
-    // Parse the value.
-    const char *reason;
-    toml_datum_t elem;
-    DO(parse_val(pp, tok, &elem));
-
     // Add the value to the array.
-    if (arr_add(ret_datum, elem, &reason)) {
+    const char *reason;
+    toml_datum_t *pelem = arr_emplace(ret_datum, &reason);
+    if (!pelem) {
       return ERROR(pp->ebuf, tok.lineno, "while parsing array: %s", reason);
     }
+
+    // Parse the value and save into array.
+    DO(parse_val(pp, tok, pelem));
 
     // Need comma before the next value.
     need_comma = 1;
@@ -1104,14 +1349,16 @@ static int parse_array_table_expr(parser_t *pp, token_t tok) {
   if (tab->u.tab.value[idx].type != TOML_ARRAY) {
     return ERROR(pp->ebuf, keylineno, "entry must be an array");
   }
-  // Add a table to the array
+  // Add an empty table to the array
   toml_datum_t *arr = &tab->u.tab.value[idx];
   if (arr->flag & FLAG_INLINED) {
     return ERROR(pp->ebuf, keylineno, "cannot extend a static array");
   }
-  if (arr_add(arr, mkdatum(TOML_TABLE), &reason)) {
+  toml_datum_t *pelem = arr_emplace(arr, &reason);
+  if (!pelem) {
     return ERROR(pp->ebuf, keylineno, "%s", reason);
   }
+  *pelem = mkdatum(TOML_TABLE);
 
   // Set the last element of this array as curtab of the parser
   pp->curtab = &arr->u.arr.elem[arr->u.arr.size - 1];

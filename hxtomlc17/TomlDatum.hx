@@ -1,11 +1,17 @@
 package hxtomlc17;
 
+import cpp.Int32;
+import cpp.Int16;
 import cpp.Double;
 import cpp.Int64;
 import cpp.RawPointer;
 import cpp.UInt32;
 import cpp.ConstCharStar;
 
+/**
+ * /* This is a Node in a Tree that represents a toml document rooted
+ * at `TomlResult`.toptab.
+ */
 @:buildXml("<include name='${haxelib:hxtomlc17}/build.xml' />")
 @:include("tomlc17.h")
 @:native("toml_datum_t")
@@ -78,19 +84,19 @@ extern class TomlDatumStr {
 extern class TomlDatumTs {
 	function new():Void;
 
-	var year:Int;
-	var month:Int;
-	var day:Int;
+	var year:Int16;
+	var month:Int16;
+	var day:Int16;
 
-	var hour:Int;
-	var minute:Int;
-	var second:Int;
-	var usec:Int;
+	var hour:Int16;
+	var minute:Int16;
+	var second:Int16;
+	var usec:Int32;
 
 	/**
 	 * in minutes
 	 */
-	var tz:Int;
+	var tz:Int16;
 }
 
 /**
@@ -106,7 +112,7 @@ extern class TomlDatumArr {
 	/**
 	 * count elem
 	 */
-	var size:Int;
+	var size:Int32;
 
 	var elem:RawPointer<TomlDatum>;
 }
@@ -124,7 +130,7 @@ extern class TomlDatumTab {
 	/**
 	 * count key
 	 */
-	var size:Int;
+	var size:Int32;
 
 	var key:RawPointer<ConstCharStar>;
 	var len:RawPointer<Int>;

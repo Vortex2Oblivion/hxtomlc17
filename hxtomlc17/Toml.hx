@@ -1,5 +1,6 @@
 package hxtomlc17;
 
+import cpp.RawConstPointer;
 import cpp.ConstCharStar;
 import cpp.RawFILE;
 import cpp.RawPointer;
@@ -38,23 +39,61 @@ extern class Toml {
 	static function free(result:TomlResult):TomlResult;
 
 	/**
-     * Find a key in a `TomlDatum`. Return the value of the key if found,
-     * or a `TOML_UNKNOWN` otherwise.
-     */
+	 * Find a key in a `TomlDatum`. Return the value of the key if found,
+	 * or a `TOML_UNKNOWN` otherwise.
+	 */
 	@:native("toml_get")
 	static function get(datum:TomlDatum, key:ConstCharStar):TomlDatum;
 
-    /**
-     * Find a key in a `TomlDatum`. Return the value of the key if found,
-     * or a `TOML_UNKNOWN` otherwise.
-     */
+	/**
+	 * Find a key in a `TomlDatum`. Return the value of the key if found,
+	 * or a `TOML_UNKNOWN` otherwise.
+	 */
 	@:native("toml_table_find")
 	@:deprecated("Use Toml.get() instead")
 	static function tableFind(datum:TomlDatum, key:ConstCharStar):TomlDatum;
 
-    @:native("toml_default_option")
+	/**
+	 *  Override values in `r1` using `r2`. Return a new result. All results
+	 *  (i.e., `r1`, `r2` and the returned result) must be freed using `Toml.free()`
+	 *  after use.
+	 *
+	 *  LOGIC:
+	 *   ret = copy of `r1`
+	 *   for each item x in `r2`:
+	 *     if x is not in ret:
+	 *          override
+	 *     elif x in ret is NOT of the same type:
+	 *         override
+	 *     elif x is an array of tables:
+	 *         append `r2`.x to ret.x
+	 *     elif x is a table:
+	 *         merge `r2`.x to ret.x
+	 *     else:
+	 *         override
+	 */
+	@:native("toml_merge")
+	static function merge(r1:RawConstPointer<TomlResult>, r2:RawConstPointer<TomlResult>):TomlResult;
+
+	/**
+	 *  Check if two results are the same. Dictinary and array orders are
+	 *  sensitive.
+	 */
+	@:native("toml_equiv")
+	static function equiv(r1:RawConstPointer<TomlResult>, r2:RawConstPointer<TomlResult>):Bool;
+
+	/**
+	 * Get the default options. IF NECESSARY, use this to initialize
+	 * `TomlOption` and override values before calling
+	 * Toml.setOption().
+	 */
+	@:native("toml_default_option")
 	static function defaultOption():TomlOption;
 
-    @:native("toml_set_option")
+	/**
+	 * Set toml options globally. Do this ONLY IF you are not satisfied with the
+	 * defaults.
+	 */
+	@:native("toml_set_option")
 	static function setOption(opt:TomlOption):Void;
 }
