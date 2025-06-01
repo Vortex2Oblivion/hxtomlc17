@@ -1,5 +1,7 @@
 package hxtomlc17;
 
+import cpp.Char;
+import cpp.ForcedString;
 import cpp.RawPointer;
 
 /**
@@ -14,7 +16,7 @@ extern class TomlResult {
 
     var ok:Bool;
     var toptab:TomlDatum;
-    var errmsg:String;
+    var errmsg:ForcedString;
 
     private var __internal:RawPointer<cpp.Void>;
 }
