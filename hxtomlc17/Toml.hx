@@ -10,24 +10,24 @@ import cpp.RawPointer;
 extern class Toml {
 	/**
 	 * Parse a toml document. Returns a `TomlResult` which must be freed
-	 * using `free()` eventually.
+	 * using `Toml.free()` eventually.
 	 *
 	 * IMPORTANT: `src` must be a null terminated string! The `len` parameter
 	 * does not include the null terminator.
 	 */
-	@:native("toml_parse_file")
+	@:native("toml_parse")
 	static function parse(src:ConstCharStar, len:Int):TomlResult;
 
 	/**
 	 * Parse a toml file. Returns a `TomlResult` which must be freed
-	 * using `free()` eventually.
+	 * using `Toml.free()` eventually.
 	 */
 	@:native("toml_parse_file")
 	static function parseFile(file:RawPointer<RawFILE>):TomlResult;
 
 	/**
 	 * Parse a toml file. Returns a `TomlResult` which must be freed
-	 * using `free()` eventually.
+	 * using `Toml.free()` eventually.
 	 */
 	@:native("toml_parse_file_ex")
 	static function parseFileEx(fname:ConstCharStar):TomlResult;

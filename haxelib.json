@@ -4,8 +4,8 @@
     "license": "MIT",
     "tags": ["hxcpp", "cpp", "bindings", "native", "toml", "parser", "externs", "tomlc17"],
     "description": "Haxe/hxcpp @:native bindings for tomlc17",
-    "version": "1.2.0",
-    "releasenote": "Add Toml.merge(), Toml.equiv(), fix building on some platforms.",
+    "version": "1.2.1",
+    "releasenote": "Fix function pointing to the wrong native function",
     "contributors": ["Vortex"],
     "dependencies": {
       "cpphelpers": ""
