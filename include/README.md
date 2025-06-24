@@ -1,13 +1,18 @@
 # tomlc17
 
-TOML in c99, c17; v1.0 compliant.
+TOML v1.0 in c17.
 
-* Compatible with [TOML v1.0.0](https://toml.io/en/v1.0.0).
-* Passes the [standard test suites](https://github.com/toml-lang/toml-test/)
+* Compatible with C99.
+* Compatible with C++.
+* Implements [C++20 Accessors](README_CXX.md).
+* Implements [TOML v1.0.0](https://toml.io/en/v1.0.0).
+* Passes the [standard test suites](https://github.com/toml-lang/toml-test/).
 
 ## Usage
 
-See `tomlc17.h` for details. 
+See
+[tomlc17.h](https://github.com/cktan/tomlc17/blob/main/src/tomlc17.h)
+for details.
 
 Parsing a toml document creates a tree data structure in memory that
 reflects the document. Information can be extracted by navigating this
@@ -38,15 +43,8 @@ static void error(const char *msg, const char *msg1) {
 }
 
 int main() {
-  // Open the toml file
-  FILE *fp = fopen("simple.toml", "r");
-  if (!fp) {
-    error("cannot open simple.toml - ", strerror(errno));
-  }
-
   // Parse the toml file
-  toml_result_t result = toml_parse_file(fp);
-  fclose(fp); // done with the file handle
+  toml_result_t result = toml_parse_file_ex("simple.toml");
 
   // Check for parse error
   if (!result.ok) {
@@ -54,9 +52,8 @@ int main() {
   }
 
   // Extract values
-  toml_datum_t server = toml_table_find(result.toptab, "server");
-  toml_datum_t host = toml_table_find(server, "host");
-  toml_datum_t port = toml_table_find(server, "port");
+  toml_datum_t host = toml_seek(result.toptab, "server.host");
+  toml_datum_t port = toml_seek(result.toptab, "server.port");
 
   // Print server.host
   if (host.type != TOML_STRING) {
@@ -84,6 +81,7 @@ int main() {
 }
 ```
 
+
 ## Building
 
 For debug build:
@@ -100,12 +98,30 @@ make
 
 ## Running tests
 
+We run the official `toml-test` as described
+[here](https://github.com/toml-lang/toml-test). Refer to
+[this
+section](https://github.com/toml-lang/toml-test?tab=readme-ov-file#installation)
+for prerequisites to run the tests.
+
+The following command invokes the tests:
+
 ```bash
 make test
 ```
 
+As of today (05/07/2025), all tests passed:
+
+```
+toml-test v0001-01-01 [/home/cktan/p/tomlc17/test/stdtest/driver]: using embedded tests
+  valid tests: 185 passed,  0 failed
+invalid tests: 371 passed,  0 failed
+```
+
 
 ## Installing
+
+The install command will copy `tomlc17.h`, `tomlcpp.hpp` and `libtomlc17.a` to the `$prefix/include` and `$prefix/lib` directories.
 
 ```bash
 unset DEBUG

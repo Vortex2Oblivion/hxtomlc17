@@ -46,6 +46,16 @@ extern class Toml {
 	static function get(datum:TomlDatum, key:ConstCharStar):TomlDatum;
 
 	/**
+	 * Locate a value starting from a toml_table. Return the value of the key if
+	 * found, or a `TOML_UNKNOWN` otherwise.
+	 *
+	 * Note: the multipart-key is separated by DOT, and must not have any escape
+	 * chars.
+	 */
+	@:native("toml_seek")
+	static function seek(table:TomlDatum, multipartKey:ConstCharStar):TomlDatum;
+
+	/**
 	 * Find a key in a `TomlDatum`. Return the value of the key if found,
 	 * or a `TOML_UNKNOWN` otherwise.
 	 */
