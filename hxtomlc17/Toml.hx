@@ -5,6 +5,15 @@ import cpp.ConstCharStar;
 import cpp.RawFILE;
 import cpp.RawPointer;
 
+/**
+ *  USAGE:
+ *
+ *  1. Call `Toml.parse()`, `Toml.parseFile()`, or `Toml.parseFileEx()`
+ *  2. Check `result.ok`
+ *  3. Use `Toml.get()` or `Toml.seek()` to query and traverse the `result.toptab`
+ *  4. Call `Toml.free()` to release resources.
+ *
+ */
 @:buildXml("<include name='${haxelib:hxtomlc17}/build.xml' />")
 @:include("tomlc17.h")
 extern class Toml {
