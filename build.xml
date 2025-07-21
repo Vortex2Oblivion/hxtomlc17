@@ -1,6 +1,6 @@
 <xml>
 	<pragma once="true" />
-	<set name="toml_folder" value="${haxelib:hxtomlc17}/include" />
+	<set name="toml_folder" value="${haxelib:hxtomlc17}/tomlc17/src" />
 
 	<files id="__main__">
 		<compilerflag value="-I${hxtomlc17}" />
