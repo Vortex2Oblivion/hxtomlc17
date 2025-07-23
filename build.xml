@@ -3,7 +3,7 @@
 	<set name="toml_folder" value="${haxelib:hxtomlc17}/tomlc17/src" />
 
 	<files id="__main__">
-		<compilerflag value="-I${hxtomlc17}" />
+		<compilerflag value="-I${toml_folder}" />
 	</files>
 
 	<files id="haxe">
